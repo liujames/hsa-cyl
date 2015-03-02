@@ -1,0 +1,66 @@
+version 0:20140528:$full:$large;
+extension "amd:gcn";
+extension "IMAGE";
+
+decl prog function &abort()();
+
+prog kernel &__OpenCL_svmlinear_kernel(
+	kernarg_u64 %global_offset_0,
+	kernarg_u64 %global_offset_1,
+	kernarg_u64 %global_offset_2,
+	kernarg_u64 %printf_buffer,
+	kernarg_u64 %vqueue_pointer,
+	kernarg_u64 %aqlwrap_pointer,
+	kernarg_u64 %vecs,
+	kernarg_u64 %another,
+	kernarg_u32 %vcount,
+	kernarg_u32 %var_count,
+	kernarg_f32 %alpha,
+	kernarg_f32 %beta,
+	kernarg_u64 %results)
+{
+	pragma  "AMD RTI", "ARGSTART:__OpenCL_svmlinear_kernel";
+	pragma  "AMD RTI", "version:3:1:104";
+	pragma  "AMD RTI", "device:generic";
+	pragma  "AMD RTI", "uniqueid:1025";
+	pragma  "AMD RTI", "memory:private:0";
+	pragma  "AMD RTI", "memory:region:0";
+	pragma  "AMD RTI", "memory:local:0";
+	pragma  "AMD RTI", "value:global_offset_0:u64:1:1:0";
+	pragma  "AMD RTI", "value:global_offset_1:u64:1:1:16";
+	pragma  "AMD RTI", "value:global_offset_2:u64:1:1:32";
+	pragma  "AMD RTI", "pointer:printf_buffer:u8:1:1:48:uav:8:1:RW:0:0:0";
+	pragma  "AMD RTI", "value:vqueue_pointer:u64:1:1:64";
+	pragma  "AMD RTI", "value:aqlwrap_pointer:u64:1:1:80";
+	pragma  "AMD RTI", "pointer:vecs:float:1:1:96:uav:8:4:RW:0:0:0";
+	pragma  "AMD RTI", "pointer:another:float:1:1:112:uav:8:4:RW:0:0:0";
+	pragma  "AMD RTI", "value:vcount:u32:1:1:128";
+	pragma  "AMD RTI", "value:var_count:u32:1:1:144";
+	pragma  "AMD RTI", "value:alpha:float:1:1:160";
+	pragma  "AMD RTI", "value:beta:float:1:1:176";
+	pragma  "AMD RTI", "pointer:results:float:1:1:192:uav:8:4:RW:0:0:0";
+	pragma  "AMD RTI", "function:1:0";
+	pragma  "AMD RTI", "memory:64bitABI";
+	pragma  "AMD RTI", "uavid:8";
+	pragma  "AMD RTI", "privateid:8";
+	pragma  "AMD RTI", "enqueue_kernel:0";
+	pragma  "AMD RTI", "kernel_index:0";
+	pragma  "AMD RTI", "reflection:0:size_t";
+	pragma  "AMD RTI", "reflection:1:size_t";
+	pragma  "AMD RTI", "reflection:2:size_t";
+	pragma  "AMD RTI", "reflection:3:size_t";
+	pragma  "AMD RTI", "reflection:4:size_t";
+	pragma  "AMD RTI", "reflection:5:size_t";
+	pragma  "AMD RTI", "reflection:6:float*";
+	pragma  "AMD RTI", "reflection:7:float*";
+	pragma  "AMD RTI", "reflection:8:uint";
+	pragma  "AMD RTI", "reflection:9:uint";
+	pragma  "AMD RTI", "reflection:10:float";
+	pragma  "AMD RTI", "reflection:11:float";
+	pragma  "AMD RTI", "reflection:12:float*";
+	pragma  "AMD RTI", "ARGEND:__OpenCL_svmlinear_kernel";
+
+@__OpenCL_svmlinear_kernel_entry:
+	// BB#0:                                // %entry
+	ret;
+};
