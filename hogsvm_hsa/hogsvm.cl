@@ -1,11 +1,11 @@
 #pragma OPENCL EXTENSION cl_khr_fp64 : enable
 
-#define _DEBUG
+#define _DEBUGx
 
 __kernel void svmlinear(__global float* vecs,
                   __global float* another,
-                  __const unsigned int vcount,
-                  __const unsigned int var_count,
+                  __const int vcount,
+                  __const int var_count,
                   __const float alpha,
                   __const float beta,
                   __global float* results
@@ -14,9 +14,9 @@ __kernel void svmlinear(__global float* vecs,
     int id = get_global_id(0);
     int offset = id*var_count;
     int k;
-    printf("work-item %d begin, vcount=%d, var_count=%d, alpha=%f, beta=%f\n",id,vcount, var_count, alpha, beta);
+   // printf("work-item %d begin, vcount=%d, var_count=%d, alpha=%f, beta=%f\n",id,vcount, var_count, alpha, beta);
 
-    
+	    
         double s = 0;
     
         for( k = 0; k <= var_count - 4; k += 4 )
@@ -25,7 +25,7 @@ __kernel void svmlinear(__global float* vecs,
             s += vecs[ offset + k ]*another[k];
     
         results[id] = (float)(s*alpha + beta);
-    
+   	//results[id]=vecs[offset];
 #ifdef _DEBUG
     if(id==vcount-1){
         for(k=0;k<var_count;k++){

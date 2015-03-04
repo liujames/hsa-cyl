@@ -5,7 +5,7 @@
 #include <CL/cl.h>
 #endif
 
-#define _DEBUG
+#define _DEBUGx
 #define MEM_SIZE (7524*sizeof(float))
 
 #define MAX_SOURCE_SIZE (0x100000)
@@ -338,10 +338,12 @@ class SVMKernelImpl : public SVM::Kernel
 	hsa_dispatch_packet_t aql;
  	hsa_region_t kernarg_region = 0;
 	void* kernel_arg_buffer = NULL;
-   	size_t kernel_arg_buffer_size;
+ 	void* kernel_arg_buffer_backup[1500] = {NULL}; 
+	size_t kernel_arg_buffer_size;
 	uint64_t kernel_arg_start_offset = 0;
  	void *kernel_arg_buffer_start;
-
+	int svm_iter=0;
+	
 
 public:
     SVMKernelImpl()
@@ -352,6 +354,19 @@ public:
     ~SVMKernelImpl(){
     	if(bKernelInit){
 		cout<<"SVMKernelImpl deconstruct!"<<endl;
+		err=hsa_signal_destroy(signal);
+    		CHECK(Destroying the signal, err);
+
+    		err=hsa_ext_program_destroy(hsaProgram);
+    		CHECK(Destroying the program, err);
+
+   		 destroy_brig_module(brigModule);
+
+    		err=hsa_queue_destroy(commandQueue);
+    		CHECK(Destroying the queue, err);
+    
+		err=hsa_shut_down();
+    		CHECK(Shutting down the runtime, err);
 		bKernelInit=false;
     	}
 
@@ -405,7 +420,6 @@ public:
     	printf("The maximum queue size is %u.\n", (unsigned int) queue_size);
 
      	//Create a queue using the maximum size.
-    	 commandQueue;
     	err = hsa_queue_create(device, queue_size, HSA_QUEUE_TYPE_MULTI, NULL, NULL, &commandQueue);
     	CHECK(Creating the queue, err);
 
@@ -448,10 +462,7 @@ public:
     	CHECK(Querying the kernel descriptor address, err);
 
     
-    	//Create a signal to wait for the dispatch to finish.
-    	err=hsa_signal_create(1, 0, NULL, &signal);
-    	CHECK(Creating a HSA signal, err);
-
+  	memset(&aql, 0, sizeof(aql));
 
 
 
@@ -530,9 +541,30 @@ public:
 #ifdef _DEBUG
 	gettimeofday(&t1, NULL);
 #endif
+	//bKernelInit=false;
+	err=hsa_signal_create(1, 0, NULL, &signal);
+	aql.completion_signal=signal;
 
-    	if(!bKernelInit){
-    		bKernelInit=true;
+	if(!bKernelInit){
+    
+		bKernelInit=true;
+	
+				
+		aql.dimensions=1;
+    		aql.workgroup_size_x=1;
+    		aql.workgroup_size_y=1;
+    		aql.workgroup_size_z=1;
+    		aql.grid_size_x=vcount;
+    		aql.grid_size_y=1;
+    		aql.grid_size_z=1;
+    		aql.header.type=HSA_PACKET_TYPE_DISPATCH;
+    		aql.header.acquire_fence_scope=2;
+    		aql.header.release_fence_scope=2;
+    		aql.header.barrier=1;
+    		aql.group_segment_size= hsaCodeDescriptor->workgroup_group_segment_byte_size;
+    		aql.private_segment_size= hsaCodeDescriptor->workitem_private_segment_byte_size;
+		aql.kernel_object_address=hsaCodeDescriptor->code.handle;
+
 		//ret = clSetKernelArg(kernel, 0, sizeof(cl_mem),   (void *)&cm_samples);
 		//ret = clSetKernelArg(kernel, 1, sizeof(cl_mem),   (void *)&cm_another);
 		//ret = clSetKernelArg(kernel, 2, sizeof(cl_uint),  (void *)&vcount2);
@@ -547,86 +579,81 @@ public:
 		//getchar();
 		#endif
     		
-		memset(&aql, 0, sizeof(aql));
-
-    
-    		// Setup the dispatch information.
-    		aql.completion_signal=signal;
-    		aql.dimensions=1;
-    		aql.workgroup_size_x=1;
-    		aql.workgroup_size_y=1;
-    		aql.workgroup_size_z=1;
-    		aql.grid_size_x=vcount;
-    		aql.grid_size_y=1;
-    		aql.grid_size_z=1;
-    		aql.header.type=HSA_PACKET_TYPE_DISPATCH;
-    		aql.header.acquire_fence_scope=2;
-    		aql.header.release_fence_scope=2;
-    		aql.header.barrier=1;
-    		aql.group_segment_size= hsaCodeDescriptor->workgroup_group_segment_byte_size;
-    		aql.private_segment_size= hsaCodeDescriptor->workitem_private_segment_byte_size;
-    
-    
+		    		// Setup the dispatch information.
+    	
     		// Allocate and initialize the kernel arguments.
      
     		err=hsa_memory_register(vecs, vcount*var_count*sizeof(float) );
-    		CHECK(Registering argument memory for vecs parameter, err);
+    	//	CHECK(Registering argument memory for vecs parameter, err);
     
     		err=hsa_memory_register(another, var_count*sizeof(float) );
-    		CHECK(Registering argument memory for another parameter, err);
+    	//	CHECK(Registering argument memory for another parameter, err);
     
-		err=hsa_memory_register(&vcount2, sizeof(cl_uint) );
-    		CHECK(Registering argument memory for vcount  parameter, err);
+		err=hsa_memory_register(&vcount2, sizeof(int) );
+    	//	CHECK(Registering argument memory for vcount  parameter, err);
     
-		err=hsa_memory_register(&var_count2, sizeof(cl_uint) );
-    		CHECK(Registering argument memory for var_count parameter, err);
+		err=hsa_memory_register(&var_count2, sizeof(int) );
+    	//	CHECK(Registering argument memory for var_count parameter, err);
     
 		err=hsa_memory_register(&alpha2, sizeof(float) );
-    		CHECK(Registering argument memory for alpha parameter, err);
+    	//	CHECK(Registering argument memory for alpha parameter, err);
     
 		err=hsa_memory_register(&beta2, sizeof(float) );
-    		CHECK(Registering argument memory for beta  parameter, err);
+    	//	CHECK(Registering argument memory for beta  parameter, err);
     
 		err=hsa_memory_register(results, vcount*sizeof(float) );
-    		CHECK(Registering argument memory for result parameter, err);
-    
-
-		//Find a memory region that supports kernel arguments.
-    		cout<<"start to alloc kernel region"<<endl;
-		hsa_region_t kernarg_region = 0;
+    	///	CHECK(Registering argument memory for result parameter, err);
+	
+	//Find a memory region that supports kernel arguments.
+    		//cout<<"start to alloc kernel region"<<endl;
+		kernarg_region = 0;
     		hsa_agent_iterate_regions(device, get_kernarg, &kernarg_region);
     		err = (kernarg_region == 0) ? HSA_STATUS_ERROR : HSA_STATUS_SUCCESS;
-    		CHECK(Finding a kernarg memory region, err);
+    	//	CHECK(Finding a kernarg memory region, err);
+	
+	
     		kernel_arg_buffer = NULL;
 
     		kernel_arg_buffer_size = hsaCodeDescriptor->kernarg_segment_byte_size;
- 
+ 	
 		// Allocate the kernel argument buffer from the correct region.
-      
+     
     		err = hsa_memory_allocate(kernarg_region, kernel_arg_buffer_size, &kernel_arg_buffer);
-    		CHECK(Allocating kernel argument memory buffer, err);
-    		kernel_arg_start_offset = 0;
-		#ifdef DUMMY_ARGS
+    		//err = hsa_memory_allocate(kernarg_region, kernel_arg_buffer_size, &kernel_arg_buffer_backup);
+		CHECK(Allocating kernel argument memory buffer, err);
+
+	}	
+     	    	kernel_arg_start_offset = 0;
     		//This flags should be set if HSA_HLC_Stable is used
     		// This is because the high level compiler generates 6 extra args
     		kernel_arg_start_offset += sizeof(uint64_t) * 6;
-    		printf("Using dummy args \n");
-		#endif
+    		//printf("Using dummy args \n");
     		memset(kernel_arg_buffer, 0, kernel_arg_buffer_size);
-		void* ptr_tmp=NULL;
     		kernel_arg_buffer_start = (char*)kernel_arg_buffer + kernel_arg_start_offset;
+		int offset_cur=0;
     		memcpy(kernel_arg_buffer_start,                   &vecs,                 sizeof(void*));
-    		memcpy(kernel_arg_buffer_start + sizeof(void*),   &another,              sizeof(void*));
- 		memcpy(kernel_arg_buffer_start + 2*sizeof(void*), &(ptr_tmp=&vcount),    sizeof(void*));
-                memcpy(kernel_arg_buffer_start + 3*sizeof(void*), &(ptr_tmp=&var_count), sizeof(void*));
-    		memcpy(kernel_arg_buffer_start + 4*sizeof(void*), &(ptr_tmp=&alpha2),    sizeof(void*));
-                memcpy(kernel_arg_buffer_start + 5*sizeof(void*), &(ptr_tmp=&beta2),     sizeof(void*));
-		memcpy(kernel_arg_buffer_start + 6*sizeof(void*), &results,              sizeof(void*));
-     		//Bind kernel code and the kernel argument buffer to the  aql packet.
-     
-    		aql.kernel_object_address=hsaCodeDescriptor->code.handle;
-    		aql.kernarg_address=(uint64_t)kernel_arg_buffer;
-	}
+		offset_cur += sizeof(void*);
+    		memcpy(kernel_arg_buffer_start + offset_cur,   &another,              sizeof(void*));
+ 		offset_cur += sizeof(void*);
+		memcpy(kernel_arg_buffer_start + offset_cur, &vcount,    sizeof(int));
+                offset_cur += sizeof(int);
+		memcpy(kernel_arg_buffer_start + offset_cur, &var_count, sizeof(int));
+    		offset_cur += sizeof(int);
+		memcpy(kernel_arg_buffer_start + offset_cur, &alpha2,    sizeof(float));
+                offset_cur += sizeof(float);
+		memcpy(kernel_arg_buffer_start + offset_cur, &beta2,     sizeof(float));
+		offset_cur += sizeof(float);
+		memcpy(kernel_arg_buffer_start + offset_cur, &results,   sizeof(void*));
+ 	
+    	
+   	   	
+//	printf("kernel_arg_buffer_size=%d\n",kernel_arg_buffer_size);
+	//err = hsa_memory_allocate(kernarg_region, kernel_arg_buffer_size, &kernel_arg_buffer);
+
+	//memcpy(kernel_arg_buffer,kernel_arg_buffer_backup,kernel_arg_buffer_size); 
+	
+
+		aql.kernarg_address=(uint64_t)kernel_arg_buffer;
 		//Obtain the current queue write index 
     		uint64_t index = hsa_queue_load_write_index_relaxed(commandQueue);
 
@@ -640,17 +667,20 @@ public:
     		// Increment the write index and ring the doorbell to dispatch the kernel.
      		hsa_queue_store_write_index_relaxed(commandQueue, index+1);
     		hsa_signal_store_relaxed(commandQueue->doorbell_signal, index);
-    		CHECK(Dispatching the kernel, err);
+    		//CHECK(Dispatching the kernel, err);
 
     
     		//Wait on the dispatch signal until the kernel is finished.
    		err = hsa_signal_wait_acquire(signal, HSA_LT, 1, (uint64_t) -1, HSA_WAIT_EXPECTANCY_UNKNOWN);
-    		CHECK(Wating on the dispatch signal, err);
-
+    		//CHECK(Wating on the dispatch signal, err);
+		
  	#ifdef _DEBUG
+	for(int i=0;i<5;i++){
+		printf("vecs[%d]=%f  results[%d]=%f\n",i*var_count,vecs[i*var_count],i,results[i]);
+	}
     	gettimeofday(&t2, NULL);
     	elapsedTime = (t2.tv_sec - t1.tv_sec) + (t2.tv_usec - t1.tv_usec) / 1000000.0;
-    	cout <<"one loop cost : "<< elapsedTime << " s.\n";
+	cout <<"one loop cost : "<< elapsedTime << " s.\n";
     	cout<<"Press any key to continue"<<endl;
     	getchar();
 	#endif

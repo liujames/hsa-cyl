@@ -1,4 +1,4 @@
-
+HSA_RUNTIME_PATH=/opt/hsa
 TEST_NAME=elf_utils
 LFLAGS= -g  -Wl,--unresolved-symbols=ignore-in-shared-libs
 INCS += -I $(HSA_RUNTIME_PATH)/include

@@ -21,11 +21,10 @@
  */
 
 #pragma once
-extern "C"{
-#include "hsa_ext_finalize.h"
-};
 
-//typedef enum status_t status_t;
+#include "hsa_ext_finalize.h"
+
+
 enum status_t {
     STATUS_SUCCESS=0,
     STATUS_KERNEL_INVALID_SECTION_HEADER=1,
@@ -36,6 +35,8 @@ enum status_t {
     STATUS_KERNEL_MISSING_OPERAND_SECTION=6,
     STATUS_UNKNOWN=7,
 };
+typedef enum status_t status_t;
+
 
 status_t create_brig_module_from_brig_file(const char* file_name, hsa_ext_brig_module_t** brig_module);
 
